@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
-  title: "QuantGPT",
-  description: "AI-assisted algorithmic trading intelligence layer",
+  title: "QuantGPT | Intelligence Terminal",
+  description: "AI-assisted, risk-aware trading intelligence terminal",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

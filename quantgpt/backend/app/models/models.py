@@ -60,6 +60,19 @@ class RefreshToken(Base, TimestampMixin):
     revoked: Mapped[bool] = mapped_column(default=False, nullable=False)
 
 
+class AuditLog(Base):
+    """Append-only operational audit trail. Sensitive payloads are intentionally excluded."""
+    __tablename__ = "audit_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    request_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    action: Mapped[str] = mapped_column(String(512), index=True, nullable=False)
+    status_code: Mapped[int] = mapped_column(Integer, nullable=False)
+    ip_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True, nullable=False)
+
+
 # ── Agent framework ──
 class Agent(Base, TimestampMixin):
     __tablename__ = "agents"

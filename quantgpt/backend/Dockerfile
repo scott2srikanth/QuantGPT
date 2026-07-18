@@ -16,6 +16,11 @@ RUN pip install --upgrade pip && pip install -e ".[dev]"
 
 COPY . .
 
+RUN groupadd --system quantgpt && useradd --system --gid quantgpt --home-dir /app quantgpt \
+    && chown -R quantgpt:quantgpt /app
+
+USER quantgpt
+
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers"]

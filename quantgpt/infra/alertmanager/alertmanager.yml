@@ -1,0 +1,9 @@
+route:
+  receiver: operations
+  group_by: [alertname, service]
+  group_wait: 30s
+  repeat_interval: 4h
+receivers:
+  - name: operations
+    # Configure a Slack, PagerDuty, or webhook receiver through your secret-managed deployment values.
+    webhook_configs: []
