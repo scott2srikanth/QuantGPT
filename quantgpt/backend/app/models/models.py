@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -143,3 +143,77 @@ class AgentHealth(Base):
     status: Mapped[str] = mapped_column(String(64), default="healthy", nullable=False)
     detail: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True, nullable=False)
+
+
+# ── ML research ──
+class MLFeatureSet(Base, TimestampMixin):
+    __tablename__ = "ml_feature_sets"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    features: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    target_horizon: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    config: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class MLModel(Base, TimestampMixin):
+    __tablename__ = "ml_models"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    model_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    task: Mapped[str] = mapped_column(String(64), default="market_forecast", nullable=False)
+    description: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
+class MLModelVersion(Base, TimestampMixin):
+    __tablename__ = "ml_model_versions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    model_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ml_models.id", ondelete="CASCADE"), index=True, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(64), default="created", index=True, nullable=False)
+    artifact_uri: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    feature_set_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("ml_feature_sets.id", ondelete="SET NULL"), nullable=True)
+    training_metrics: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    validation_metrics: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    hyperparameters: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    __table_args__ = (UniqueConstraint("model_id", "version", name="uq_ml_model_versions_model_version"),)
+
+
+class MLTrainingRun(Base, TimestampMixin):
+    __tablename__ = "ml_training_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    model_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("ml_models.id", ondelete="SET NULL"), nullable=True)
+    model_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("ml_model_versions.id", ondelete="SET NULL"), nullable=True)
+    status: Mapped[str] = mapped_column(String(64), default="pending", index=True, nullable=False)
+    requested_model_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    dataset: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    feature_config: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    training_config: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    metrics: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    error: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class MLInferenceRecord(Base):
+    __tablename__ = "ml_inference_records"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    model_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("ml_model_versions.id", ondelete="SET NULL"), nullable=True)
+    symbol: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    exchange: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    probability_up: Mapped[float] = mapped_column(Float, nullable=False)
+    probability_down: Mapped[float] = mapped_column(Float, nullable=False)
+    expected_return: Mapped[float] = mapped_column(Float, nullable=False)
+    volatility: Mapped[float] = mapped_column(Float, nullable=False)
+    confidence_score: Mapped[float] = mapped_column(Float, nullable=False)
+    inputs: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

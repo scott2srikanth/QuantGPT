@@ -22,7 +22,7 @@ ps: ## List services
 	docker compose ps
 
 health: ## Hit backend health endpoint
-	@curl -fsS http://localhost:8000/health | python3 -m json.tool || echo "backend not reachable"
+	@curl -fsS http://localhost:8000/api/v1/health | python3 -m json.tool || echo "backend not reachable"
 
 migrate: ## Apply Alembic migrations
 	docker compose exec backend alembic upgrade head

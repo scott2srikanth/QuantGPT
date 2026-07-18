@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     strategy_plugins_dir: str = Field(default="plugins/strategies", alias="STRATEGY_PLUGINS_DIR")
     strategy_marketplace_enabled: bool = Field(default=True, alias="STRATEGY_MARKETPLACE_ENABLED")
 
+    # ML research
+    ml_model_artifact_dir: str = Field(default="model_artifacts", alias="ML_MODEL_ARTIFACT_DIR")
+
     @field_validator("quantgpt_jwt_secret")
     @classmethod
     def _secret_must_be_set(cls, v: str) -> str:
