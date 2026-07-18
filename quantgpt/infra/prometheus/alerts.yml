@@ -1,0 +1,18 @@
+groups:
+  - name: quantgpt
+    rules:
+      - alert: QuantGPTBackendDown
+        expr: up{job="quantgpt-backend"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "QuantGPT backend is unreachable"}
+      - alert: QuantGPTHighErrorRate
+        expr: sum(rate(quantgpt_http_requests_total{status_code=~"5.."}[5m])) / clamp_min(sum(rate(quantgpt_http_requests_total[5m])), 1) > 0.05
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "QuantGPT 5xx rate is above 5%"}
+      - alert: QuantGPTHighLatency
+        expr: histogram_quantile(0.95, sum(rate(quantgpt_http_request_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "QuantGPT p95 latency is above 1 second"}

@@ -1,0 +1,63 @@
+# Production overlay: `docker compose -f docker-compose.yml -f docker-compose.production.yml up -d`
+# Do not place credentials in this file. Use Docker/Kubernetes secrets or an encrypted CI secret store.
+services:
+  postgres:
+    ports: []
+    restart: always
+  redis:
+    ports: []
+    restart: always
+  backend:
+    ports: []
+    restart: always
+    environment:
+      QUANTGPT_ENV: production
+      METRICS_ENABLED: "true"
+    networks:
+      - quantgpt
+      - monitoring
+  frontend:
+    restart: always
+    ports:
+      - "${QUANTGPT_PUBLIC_PORT:-3000}:3000"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: always
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=30d"]
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks: [monitoring]
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: always
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    volumes:
+      - ./infra/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks: [monitoring]
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    restart: always
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?set GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    networks: [monitoring]
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  monitoring:
+    internal: true

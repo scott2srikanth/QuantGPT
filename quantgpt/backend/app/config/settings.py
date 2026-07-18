@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, computed_field, field_validator
+from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +14,15 @@ class Settings(BaseSettings):
     backend_host: str = Field(default="0.0.0.0", alias="BACKEND_HOST")
     backend_port: int = Field(default=8000, alias="BACKEND_PORT")
     backend_cors_origins: str = Field(default="http://localhost:3000", alias="BACKEND_CORS_ORIGINS")
+    backend_trusted_hosts: str = Field(default="localhost,127.0.0.1", alias="BACKEND_TRUSTED_HOSTS")
+    rate_limit_requests: int = Field(default=120, alias="RATE_LIMIT_REQUESTS")
+    rate_limit_window_seconds: int = Field(default=60, alias="RATE_LIMIT_WINDOW_SECONDS")
+    rate_limit_auth_requests: int = Field(default=10, alias="RATE_LIMIT_AUTH_REQUESTS")
+    audit_log_enabled: bool = Field(default=True, alias="AUDIT_LOG_ENABLED")
+    metrics_enabled: bool = Field(default=True, alias="METRICS_ENABLED")
+    otel_enabled: bool = Field(default=False, alias="OTEL_ENABLED")
+    otel_service_name: str = Field(default="quantgpt-backend", alias="OTEL_SERVICE_NAME")
+    otel_exporter_otlp_endpoint: str = Field(default="", alias="OTEL_EXPORTER_OTLP_ENDPOINT")
 
     quantgpt_jwt_secret: str = Field(alias="QUANTGPT_JWT_SECRET")
     quantgpt_jwt_algorithm: str = Field(default="HS256", alias="QUANTGPT_JWT_ALGORITHM")
@@ -66,6 +75,17 @@ class Settings(BaseSettings):
             raise ValueError(f"QUANTGPT_ENV must be one of {allowed}")
         return v
 
+    @model_validator(mode="after")
+    def _production_security(self) -> "Settings":
+        if self.is_production:
+            if len(self.quantgpt_jwt_secret) < 32:
+                raise ValueError("QUANTGPT_JWT_SECRET must be at least 32 characters in production")
+            if self.quantgpt_admin_password.lower().startswith("changeme"):
+                raise ValueError("QUANTGPT_ADMIN_PASSWORD must be changed in production")
+            if any(origin.startswith("http://") for origin in self.cors_origins_list):
+                raise ValueError("BACKEND_CORS_ORIGINS must use HTTPS in production")
+        return self
+
     @computed_field
     @property
     def is_production(self) -> bool:
@@ -75,6 +95,11 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]
+
+    @computed_field
+    @property
+    def trusted_hosts_list(self) -> list[str]:
+        return [host.strip() for host in self.backend_trusted_hosts.split(",") if host.strip()]
 
 
 @lru_cache(maxsize=1)

@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: quantgpt/backend}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - run: ruff check app tests
+      - run: pytest -q --disable-warnings --maxfail=1 --cov=app
+        env:
+          QUANTGPT_ENV: test
+          QUANTGPT_JWT_SECRET: test-secret-that-is-long-enough-for-ci-only
+          QUANTGPT_ADMIN_EMAIL: admin@example.com
+          QUANTGPT_ADMIN_PASSWORD: ci-password-not-for-production
+          DATABASE_URL: postgresql+psycopg://quantgpt:quantgpt@localhost:5432/quantgpt
+          REDIS_URL: redis://localhost:6379/0
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: quantgpt/frontend}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm, cache-dependency-path: quantgpt/frontend/package-lock.json}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  integration:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: quantgpt}}
+    env:
+      QUANTGPT_ENV: test
+      QUANTGPT_JWT_SECRET: test-secret-that-is-long-enough-for-ci-only
+      QUANTGPT_ADMIN_EMAIL: admin@example.com
+      QUANTGPT_ADMIN_PASSWORD: ci-password-not-for-production
+      POSTGRES_DB: quantgpt
+      POSTGRES_USER: quantgpt
+      POSTGRES_PASSWORD: quantgpt
+      DATABASE_URL: postgresql+psycopg://quantgpt:quantgpt@postgres:5432/quantgpt
+      REDIS_URL: redis://redis:6379/0
+      BACKEND_CORS_ORIGINS: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker network create openalgo_default
+      - run: docker compose up -d --build
+      - run: docker compose exec -T backend alembic upgrade head
+      - run: curl --retry 15 --retry-connrefused --fail http://localhost:8000/api/v1/health
+      - run: curl --fail http://localhost:8000/metrics | grep quantgpt_http_requests_total
+      - if: always()
+        run: docker compose logs --no-color
+      - if: always()
+        run: docker compose down -v --remove-orphans

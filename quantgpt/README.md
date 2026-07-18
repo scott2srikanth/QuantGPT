@@ -2,7 +2,7 @@
 
 QuantGPT is an AI-assisted algorithmic trading intelligence layer that integrates with [OpenAlgo](https://github.com/marketcalls/openalgo) through a dedicated **Integration Layer** — it never modifies OpenAlgo's core. QuantGPT owns the cognitive surface (conversation, signals, strategy scoring, explainability); OpenAlgo remains the trading authority.
 
-> This repository contains **project infrastructure only** — no AI and no trading logic yet. It compiles and runs end-to-end with Docker Compose.
+> QuantGPT includes ML research, a mandatory Risk Engine gate, and a terminal dashboard. Forecasts are probabilistic, never certain; OpenAlgo remains the trading authority.
 
 ## Architecture
 
@@ -83,14 +83,14 @@ make health        # hit backend /health
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8000
 - Backend docs: http://localhost:8000/docs
-- Health: http://localhost:8000/health
+- Health: http://localhost:8000/api/v1/health
 
 ## Default credentials
 
 The first run seeds an admin user from env (`INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`):
 
 ```
-QUANTGPT_ADMIN_EMAIL=admin@quantgpt.local
+QUANTGPT_ADMIN_EMAIL=admin@quantgpt.dev
 QUANTGPT_ADMIN_PASSWORD=ChangeMe123!
 ```
 
@@ -117,6 +117,14 @@ make frontend-shell   # enter frontend container
 make test             # run backend pytest
 make lint            # ruff + biome
 ```
+
+## Production release
+
+The production overlay adds private Prometheus/Grafana/Alertmanager, non-root containers, metrics, rate limiting, audit logging, backup scripts and CI checks. Start with the [deployment guide](docs/DEPLOYMENT_GUIDE.md); do not use development credentials or expose database, Redis, backend metrics, or Grafana to the public internet.
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Developer guide](docs/DEVELOPER_GUIDE.md)
+- [Deployment and recovery guide](docs/DEPLOYMENT_GUIDE.md)
 
 ## License
 

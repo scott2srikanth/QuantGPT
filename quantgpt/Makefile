@@ -1,4 +1,4 @@
-.PHONY: help up down build rebuild logs ps health migrate migrate-new backend-shell frontend-shell test lint fmt clean
+.PHONY: help up down build rebuild logs ps health migrate migrate-new backend-shell frontend-shell test lint fmt clean prod-up backup load-test
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -48,3 +48,12 @@ fmt: ## Format backend
 
 clean: ## Remove containers, volumes, orphans
 	docker compose down -v --remove-orphans
+
+prod-up: ## Start production overlay (requires production secrets in environment)
+	docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+
+backup: ## Create a checksum-protected PostgreSQL backup (requires BACKUP_DIR)
+	./scripts/backup-postgres.sh
+
+load-test: ## Run k6 health smoke test against BASE_URL or localhost:8000
+	k6 run tests/load/smoke.js
