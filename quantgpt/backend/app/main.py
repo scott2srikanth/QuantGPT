@@ -10,6 +10,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.health import router as health_router
 from app.api.v1.integration import router as integration_router
 from app.api.v1.ml import router as ml_router
+from app.api.v1.risk import router as risk_router
 from app.api.v1.strategies import (
     marketplace_router as strategies_marketplace_router,
     plugins_router as strategies_plugins_router,
@@ -49,6 +50,7 @@ app.include_router(strategies_router, prefix=api)
 app.include_router(strategies_marketplace_router, prefix=api)
 app.include_router(strategies_plugins_router, prefix=api)
 app.include_router(ml_router, prefix=api)
+app.include_router(risk_router, prefix=api)
 
 
 @app.get("/", tags=["root"])

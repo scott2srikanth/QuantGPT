@@ -20,6 +20,7 @@ The facade exposes typed, backend-neutral methods grouped by capability:
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import datetime, timezone
 from typing import Any
 
 from app.config.settings import Settings
@@ -35,12 +36,14 @@ from app.integration.models import (
     OrderRecord,
     OrderRequest,
     OrderResponse,
+    OrderStatus,
     Position,
     Quote,
     SubscriptionMode,
     Tick,
     TradeRecord,
 )
+from app.risk.engine import RiskEngine, RiskRejectedError
 
 
 class IntegrationFacade:
@@ -94,6 +97,20 @@ class IntegrationFacade:
 
     # ── Orders ──
     def place_order(self, request: OrderRequest) -> OrderResponse:
+        risk = RiskEngine(
+            positions_provider=self.positions,
+            funds_provider=self.funds,
+            price_provider=lambda symbol, exchange: float(self.quote(symbol, exchange).ltp),
+        )
+        try:
+            risk.enforce_order(request)
+        except RiskRejectedError as exc:
+            return OrderResponse(
+                order_id="",
+                status=OrderStatus.REJECTED,
+                rejected_reason=str(exc),
+                timestamp=datetime.now(timezone.utc),
+            )
         return self._a.orders.place_order(request)
 
     def modify_order(self, order_id: str, **kwargs: Any) -> OrderResponse:

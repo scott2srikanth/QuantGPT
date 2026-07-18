@@ -217,3 +217,56 @@ class MLInferenceRecord(Base):
     inputs: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+# ── Risk engine ──
+class RiskPolicy(Base, TimestampMixin):
+    __tablename__ = "risk_policies"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True, nullable=False)
+    max_position_notional: Mapped[float] = mapped_column(Float, default=100000.0, nullable=False)
+    max_order_notional: Mapped[float] = mapped_column(Float, default=50000.0, nullable=False)
+    max_portfolio_heat: Mapped[float] = mapped_column(Float, default=0.06, nullable=False)
+    max_symbol_exposure_pct: Mapped[float] = mapped_column(Float, default=0.15, nullable=False)
+    max_sector_exposure_pct: Mapped[float] = mapped_column(Float, default=0.30, nullable=False)
+    max_gross_exposure_pct: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    max_loss_per_trade_pct: Mapped[float] = mapped_column(Float, default=0.01, nullable=False)
+    daily_stop_loss_pct: Mapped[float] = mapped_column(Float, default=0.03, nullable=False)
+    weekly_stop_loss_pct: Mapped[float] = mapped_column(Float, default=0.06, nullable=False)
+    monthly_stop_loss_pct: Mapped[float] = mapped_column(Float, default=0.10, nullable=False)
+    max_drawdown_pct: Mapped[float] = mapped_column(Float, default=0.15, nullable=False)
+    correlation_limit: Mapped[float] = mapped_column(Float, default=0.85, nullable=False)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
+class RiskApproval(Base):
+    __tablename__ = "risk_approvals"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    policy_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("risk_policies.id", ondelete="SET NULL"), nullable=True)
+    status: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    symbol: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    exchange: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    side: Mapped[str] = mapped_column(String(16), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    estimated_price: Mapped[float] = mapped_column(Float, nullable=False)
+    notional: Mapped[float] = mapped_column(Float, nullable=False)
+    confidence_score: Mapped[float] = mapped_column(Float, nullable=False)
+    reasons: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    checks: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    request: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class RiskLimitState(Base, TimestampMixin):
+    __tablename__ = "risk_limit_state"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    scope: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    realized_pnl: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    unrealized_pnl: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    peak_equity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    current_equity: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
